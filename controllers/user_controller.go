@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -50,7 +51,7 @@ func GetRoomDetail(w http.ResponseWriter, r *http.Request) {
         SELECT 
             rooms.id,
             rooms.room_name,
-            participants.id AS participant_id,
+			participants.id,
             participants.id_account,
             accounts.username
         FROM 
@@ -58,7 +59,7 @@ func GetRoomDetail(w http.ResponseWriter, r *http.Request) {
         JOIN 
             participants ON rooms.id = participants.id_room
         JOIN 
-            accounts ON participants.id_account = id_account
+            accounts ON participants.id_account = accounts.id
     `
 
 	id := r.URL.Query().Get("id")
@@ -73,24 +74,21 @@ func GetRoomDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var detailed m.DetailRoom
 	var detaileds []m.DetailRoom
 
 	for rows.Next() {
-		if err := rows.Scan(&detailed.ID, &detailed.Room.RoomName, &detailed.Participants.ID, &detailed.Participants.AccountID, &detailed.Account.Username); err != nil {
+		var detailed m.DetailRoom
+		err := rows.Scan(&detailed.Room.ID, &detailed.Room.RoomName, &detailed.Participants.ID, &detailed.Participants.AccountID, &detailed.Account.Username)
+		if err != nil {
 			log.Println(err)
 			sendErrorResponse(w, "Something went wrong, please try again")
 			return
-		} else {
-			detaileds = append(detaileds, detailed)
 		}
+		detaileds = append(detaileds, detailed)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	var response m.DetailRoomResponse
-	response.Status = 200
-	response.Message = "Success"
-	response.Data = detaileds
+	response := m.DetailRoomResponse{Status: 200, Message: "Success", Data: detaileds}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -100,6 +98,35 @@ func InsertRoom(w http.ResponseWriter, r *http.Request) {
 
 	roomName := r.URL.Query()["room_name"]
 	gameID := r.URL.Query()["game_id"]
+
+	var roomID int
+	var maxPlayers int
+
+	// ngecek roomnya
+	err := db.QueryRow("SELECT rooms.id, games.max_player FROM Rooms INNER JOIN Games ON games.id = rooms.id_game WHERE rooms.room_name = ? AND games.id = ?", roomName, gameID).Scan(&roomID, &maxPlayers)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendErrorResponse(w, "Room or game not found")
+			return
+		}
+		log.Println(err)
+		sendErrorResponse(w, "Something went wrong, please try again")
+		return
+	}
+
+	// check kalo udah penuh roomnya
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM Participants WHERE id_room = ?", roomID).Scan(&count)
+	if err != nil {
+		log.Println(err)
+		sendErrorResponse(w, "Something went wrong, please try again")
+		return
+	}
+
+	if count >= maxPlayers {
+		sendErrorResponse(w, "Maximum number of players reached")
+		return
+	}
 
 	_, errQuery := db.Exec("INSERT INTO rooms(room_name, game_id)values (?,?)",
 		roomName,

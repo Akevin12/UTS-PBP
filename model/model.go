@@ -14,7 +14,6 @@ type Games struct {
 type Rooms struct {
 	ID       int    `json:"id"`
 	RoomName string `json:"room_name"`
-	GameID   int    `json:"game_id"`
 }
 
 type Participants struct {
@@ -24,10 +23,17 @@ type Participants struct {
 }
 
 type DetailRoom struct {
-	ID           int          `json:"id"`
-	Room         Rooms        `json:"room"`
-	Participants Participants `json:"participants"`
-	Account      Account      `json:"account"`
+	Room struct {
+		ID       int    `json:"id"`
+		RoomName string `json:"room_name"`
+	}
+	Participants struct {
+		ID        int `json:"id"`
+		AccountID int `json:"account_id"`
+	}
+	Account struct {
+		Username string `json:"username"`
+	}
 }
 
 type DetailRoomResponse struct {
