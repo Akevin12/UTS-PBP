@@ -24,6 +24,7 @@ func main() {
 	router.HandleFunc("/getAllRoom", controllers.GetAllRoom).Methods("GET")
 	router.HandleFunc("/getRoomDetail", controllers.GetRoomDetail).Methods("GET")
 	router.HandleFunc("/insertRoom", controllers.InsertRoom).Methods("POST")
+	router.HandleFunc("/deleteRoom/{room_id}", controllers.DeleteRoom).Methods("DELETE")
 
 	http.Handle("/", router)
 	fmt.Println("Connected to port 8888")
